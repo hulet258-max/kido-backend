@@ -1,15 +1,16 @@
 import { query } from '../config/db';
 import { Video } from '../models/types';
+import { withLocalPlayback } from '../services/mediaService';
 
 export const videoRepository = {
   async all(): Promise<Video[]> {
     const { rows } = await query<{ data: Video }>('SELECT data FROM videos ORDER BY id');
-    return rows.map((row) => row.data);
+    return rows.map((row) => withLocalPlayback(row.data));
   },
 
   async byId(id: string): Promise<Video | undefined> {
     const { rows } = await query<{ data: Video }>('SELECT data FROM videos WHERE id = $1', [id]);
-    return rows[0]?.data;
+    return rows[0]?.data ? withLocalPlayback(rows[0].data) : undefined;
   },
 
   async categories() {

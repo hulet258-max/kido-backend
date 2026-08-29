@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { authController, loginSchema, signupSchema } from '../controllers/authController';
 import { childController, childCreateSchema } from '../controllers/childController';
 import { eventController, eventSchema } from '../controllers/eventController';
 import { parentController } from '../controllers/parentController';
@@ -11,6 +12,9 @@ export const router = Router();
 router.get('/health', asyncHandler(async (_req, res) => {
   res.json({ success: true, data: { status: 'ok', name: 'KIDO', database: 'kido' } });
 }));
+
+router.post('/auth/signup', validate(signupSchema), asyncHandler(authController.signup));
+router.post('/auth/login', validate(loginSchema), asyncHandler(authController.login));
 
 router.get('/videos', asyncHandler(videoController.list));
 router.get('/videos/:id', asyncHandler(videoController.get));

@@ -32,6 +32,7 @@ export type EventType =
   | 'video_skipped'
   | 'video_replayed'
   | 'video_liked'
+  | 'video_disliked'
   | 'video_favorited';
 
 export type AgeGroup = '3-5' | '6-8' | '9-12' | '13-15';
@@ -101,6 +102,7 @@ export interface ParentAccount {
   id: string;
   name: string;
   pin: string;
+  phone: string;
   childIds: string[];
 }
 
@@ -114,6 +116,7 @@ export interface ViewingEvent {
   category?: VideoCategory;
   language?: LanguageCode;
   orientation?: VideoOrientation;
+  reaction?: 'up' | 'down' | 'none';
   timestamp: string;
 }
 
@@ -127,6 +130,7 @@ export interface ChildState {
   profile: ChildProfile;
   favorites: string[];
   likes: string[];
+  dislikes: string[];
   continueWatching: Record<string, number>;
   dailyUsage: DailyUsage[];
   events: ViewingEvent[];

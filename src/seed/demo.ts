@@ -67,6 +67,7 @@ export const demoParent: ParentAccount = {
   id: 'parent_001',
   name: 'Demo Parent',
   pin: '1234',
+  phone: '',
   childIds: ['child_001', 'child_002'],
 };
 

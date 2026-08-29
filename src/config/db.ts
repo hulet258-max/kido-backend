@@ -2,7 +2,15 @@ import { Pool, QueryResultRow } from 'pg';
 import { env } from './env';
 
 export const pool = new Pool({
-  connectionString: env.databaseUrl,
+  ...(env.databaseUrl
+    ? { connectionString: env.databaseUrl }
+    : {
+        host: env.dbHost,
+        port: env.dbPort,
+        database: env.dbName,
+        user: env.dbUser,
+        password: env.dbPassword,
+      }),
   max: 10,
 });
 

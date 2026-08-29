@@ -41,9 +41,59 @@ See `.env.example`.
 | `PORT` | `4000` | HTTP port |
 | `NODE_ENV` | `development` | |
 | `CORS_ORIGIN` | `*` | Restrict in production |
-| `DATABASE_URL` | `postgres://kido:kido@127.0.0.1:5432/kido` | PostgreSQL connection |
+| `DB_HOST` | `127.0.0.1` | PostgreSQL host or EasyPanel service name |
+| `DB_PORT` | `5432` | PostgreSQL port |
+| `DB_NAME` | `kido` | PostgreSQL database |
+| `DB_USER` | `kido` | PostgreSQL username |
+| `DB_PASSWORD` | `kido` | PostgreSQL password; change in production |
+| `DATABASE_URL` | unset | Optional connection URL; used when no `DB_*` values are configured |
+| `CACHE_REMOTE_MEDIA` | `false` | Download remote videos into `/app/media` at startup |
 
 Do not commit secrets. None are required for the demo.
+
+## Docker / EasyPanel deployment
+
+The production image compiles TypeScript and starts the existing server with
+`node dist/index.js` (the same entry point used by `npm start`). No separate
+`app.js` entry point is needed.
+
+When the Git repository is connected to EasyPanel, create a PostgreSQL service
+and an App service with these settings:
+
+- Build method: `Dockerfile`
+- Build context / root directory: `/kido-backend`
+- Dockerfile: `Dockerfile`
+- Container port: `4000`
+- Health check path: `/api/health`
+- Persistent volume: mount to `/app/media`
+
+Set these App environment variables in EasyPanel:
+
+```env
+NODE_ENV=production
+PORT=4000
+DB_HOST=POSTGRES_SERVICE
+DB_PORT=5432
+DB_NAME=kido
+DB_USER=kido
+DB_PASSWORD=YOUR_SECURE_KIDO_PASSWORD
+CACHE_REMOTE_MEDIA=false
+CORS_ORIGIN=https://your-frontend-domain.example
+```
+
+Use the internal hostname and credentials shown by the EasyPanel PostgreSQL
+service. The application creates its tables at startup. If public media should
+survive redeployments, keep the `/app/media` volume mounted.
+
+To build and run the image locally:
+
+```bash
+docker build -t kido-backend .
+docker run --rm -p 4000:4000 \
+  -e DB_HOST=host.docker.internal \
+  -e DB_NAME=kido -e DB_USER=kido -e DB_PASSWORD=kido \
+  kido-backend
+```
 
 ## APIs
 

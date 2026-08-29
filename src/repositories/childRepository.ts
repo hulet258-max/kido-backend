@@ -7,6 +7,7 @@ type ChildRow = {
   profile: ChildProfile;
   favorites: string[];
   likes: string[];
+  dislikes: string[] | null;
   continue_watching: Record<string, number>;
   downloaded_video_ids: string[];
 };
@@ -21,6 +22,7 @@ function mapEvent(row: {
   category: ViewingEvent['category'] | null;
   language: ViewingEvent['language'] | null;
   orientation: ViewingEvent['orientation'] | null;
+  reaction: ViewingEvent['reaction'] | null;
   timestamp: Date | string;
 }): ViewingEvent {
   return {
@@ -33,6 +35,7 @@ function mapEvent(row: {
     category: row.category ?? undefined,
     language: row.language ?? undefined,
     orientation: row.orientation ?? undefined,
+    reaction: row.reaction ?? undefined,
     timestamp: new Date(row.timestamp).toISOString(),
   };
 }
@@ -55,10 +58,11 @@ async function hydrate(row: ChildRow): Promise<ChildState> {
     category: ViewingEvent['category'] | null;
     language: ViewingEvent['language'] | null;
     orientation: ViewingEvent['orientation'] | null;
+    reaction: ViewingEvent['reaction'] | null;
     timestamp: Date;
   }>(
     `SELECT id, child_id, video_id, event_type, watch_duration_seconds, percentage_watched,
-            category, language, orientation, timestamp
+            category, language, orientation, reaction, timestamp
      FROM viewing_events WHERE child_id = $1 ORDER BY timestamp`,
     [row.id],
   );
@@ -66,6 +70,7 @@ async function hydrate(row: ChildRow): Promise<ChildState> {
     profile: row.profile,
     favorites: row.favorites ?? [],
     likes: row.likes ?? [],
+    dislikes: row.dislikes ?? [],
     continueWatching: row.continue_watching ?? {},
     dailyUsage: usage.rows.map(
       (d): DailyUsage => ({
@@ -79,12 +84,12 @@ async function hydrate(row: ChildRow): Promise<ChildState> {
   };
 }
 
+const childSelect =
+  'SELECT id, profile, favorites, likes, COALESCE(dislikes, \'[]\'::jsonb) AS dislikes, continue_watching, downloaded_video_ids FROM children';
+
 export const childRepository = {
   async get(id: string): Promise<ChildState | undefined> {
-    const { rows } = await query<ChildRow>(
-      'SELECT id, profile, favorites, likes, continue_watching, downloaded_video_ids FROM children WHERE id = $1',
-      [id],
-    );
+    const { rows } = await query<ChildRow>(`${childSelect} WHERE id = $1`, [id]);
     if (!rows[0]) return undefined;
     return hydrate(rows[0]);
   },
@@ -94,15 +99,23 @@ export const childRepository = {
     return rows.map((r) => r.profile);
   },
 
-  async create(profile: ChildProfile): Promise<ChildProfile> {
-    const parent = await parentRepository.getDefault();
+  async listByParent(parentId: string): Promise<ChildState[]> {
+    const { rows } = await query<ChildRow>(`${childSelect} WHERE parent_id = $1 ORDER BY id`, [parentId]);
+    const children: ChildState[] = [];
+    for (const row of rows) {
+      children.push(await hydrate(row));
+    }
+    return children;
+  },
+
+  async create(profile: ChildProfile, parentId?: string): Promise<ChildProfile> {
     await query(
-      `INSERT INTO children (id, parent_id, profile, favorites, likes, continue_watching)
-       VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, '{}'::jsonb)`,
-      [profile.id, parent?.id ?? null, JSON.stringify(profile)],
+      `INSERT INTO children (id, parent_id, profile, favorites, likes, dislikes, continue_watching)
+       VALUES ($1, $2, $3::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '{}'::jsonb)`,
+      [profile.id, parentId ?? null, JSON.stringify(profile)],
     );
-    if (parent) {
-      await parentRepository.addChildId(parent.id, profile.id);
+    if (parentId) {
+      await parentRepository.addChildId(parentId, profile.id);
     }
     return profile;
   },
@@ -126,14 +139,16 @@ export const childRepository = {
          SET profile = $2::jsonb,
              favorites = $3::jsonb,
              likes = $4::jsonb,
-             continue_watching = $5::jsonb,
-             downloaded_video_ids = $6::jsonb
+             dislikes = $5::jsonb,
+             continue_watching = $6::jsonb,
+             downloaded_video_ids = $7::jsonb
          WHERE id = $1`,
         [
           state.profile.id,
           JSON.stringify(state.profile),
           JSON.stringify(state.favorites),
           JSON.stringify(state.likes),
+          JSON.stringify(state.dislikes ?? []),
           JSON.stringify(state.continueWatching),
           JSON.stringify(state.downloadedVideoIds),
         ],
@@ -159,8 +174,8 @@ export const childRepository = {
   async addEvent(event: ViewingEvent): Promise<void> {
     await query(
       `INSERT INTO viewing_events
-        (id, child_id, video_id, event_type, watch_duration_seconds, percentage_watched, category, language, orientation, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        (id, child_id, video_id, event_type, watch_duration_seconds, percentage_watched, category, language, orientation, reaction, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         event.id,
         event.childId,
@@ -171,6 +186,7 @@ export const childRepository = {
         event.category ?? null,
         event.language ?? null,
         event.orientation ?? null,
+        event.reaction ?? null,
         event.timestamp,
       ],
     );

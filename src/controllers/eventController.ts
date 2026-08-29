@@ -17,10 +17,13 @@ export const eventSchema = z.object({
     'video_skipped',
     'video_replayed',
     'video_liked',
+    'video_disliked',
     'video_favorited',
   ]),
   watchDurationSeconds: z.number().min(0),
   percentageWatched: z.number().min(0).max(100),
+  category: z.string().optional(),
+  reaction: z.enum(['up', 'down', 'none']).optional(),
   timestamp: z.string().optional(),
 });
 
@@ -37,9 +40,10 @@ export const eventController = {
       eventType: body.eventType,
       watchDurationSeconds: body.watchDurationSeconds,
       percentageWatched: body.percentageWatched,
-      category: video?.category,
+      category: (body.category as ViewingEvent['category'] | undefined) ?? video?.category,
       language: video?.language,
       orientation: video?.orientation,
+      reaction: body.reaction,
       timestamp: body.timestamp ?? new Date().toISOString(),
     };
     await childRepository.addEvent(event);
@@ -55,8 +59,13 @@ export const eventController = {
       if (event.eventType === 'video_favorited' && !child.favorites.includes(video.id)) {
         child.favorites.push(video.id);
       }
-      if (event.eventType === 'video_liked' && !child.likes.includes(video.id)) {
-        child.likes.push(video.id);
+      if (event.eventType === 'video_liked') {
+        if (!child.likes.includes(video.id)) child.likes.push(video.id);
+        child.dislikes = child.dislikes.filter((id) => id !== video.id);
+      }
+      if (event.eventType === 'video_disliked') {
+        if (!child.dislikes.includes(video.id)) child.dislikes.push(video.id);
+        child.likes = child.likes.filter((id) => id !== video.id);
       }
       if (event.watchDurationSeconds > 0) {
         applyWatchMinutes(child, event.watchDurationSeconds, video.category);

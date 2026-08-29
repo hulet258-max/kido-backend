@@ -5,10 +5,12 @@ import { env } from './config/env';
 import { bootstrapDatabase } from './db/bootstrap';
 import { errorHandler } from './middleware/errorHandler';
 import { router } from './routes';
+import { mediaDir } from './services/mediaService';
 
 const app = express();
 app.use(cors({ origin: env.corsOrigin }));
 app.use(express.json({ limit: '1mb' }));
+app.use('/media', express.static(mediaDir));
 app.use('/api', router);
 app.use(errorHandler);
 
@@ -17,8 +19,12 @@ async function start() {
     await pool.query('SELECT 1');
     await bootstrapDatabase();
   } catch (err) {
-    console.error('Failed to connect to PostgreSQL database "kido".');
-    console.error(`DATABASE_URL=${env.databaseUrl}`);
+    console.error('Failed to connect to PostgreSQL.');
+    if (env.databaseUrl) {
+      console.error('Database connection source: DATABASE_URL');
+    } else {
+      console.error(`Database: ${env.dbName}; host: ${env.dbHost}:${env.dbPort}; user: ${env.dbUser}`);
+    }
     console.error(err);
     process.exit(1);
   }

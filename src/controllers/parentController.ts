@@ -87,7 +87,10 @@ export const parentController = {
   },
   async verifyPin(req: Request, res: Response) {
     const pin = String(req.body?.pin ?? '');
-    const parent = await parentRepository.getDefault();
+    const phone = String(req.body?.phone ?? '').replace(/\D/g, '');
+    const parent = phone
+      ? await parentRepository.findByPhone(phone)
+      : undefined;
     if (!parent || pin !== parent.pin) return fail(res, 'Incorrect PIN', 401);
     return ok(res, { parentId: parent.id, name: parent.name });
   },

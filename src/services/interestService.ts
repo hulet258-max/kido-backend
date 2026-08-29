@@ -8,6 +8,7 @@ export function scoreForEvent(eventType: EventType, percentageWatched: number, w
   if (percentageWatched > 80) score += 3;
   if (eventType === 'video_completed') score += 4;
   if (eventType === 'video_liked') score += 3;
+  if (eventType === 'video_disliked') score -= 3;
   if (eventType === 'video_favorited') score += 4;
   if (eventType === 'video_replayed') score += 4;
   if (eventType === 'video_skipped' && watchDurationSeconds <= 3) score -= 3;

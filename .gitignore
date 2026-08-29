@@ -1,6 +1,5 @@
 node_modules/
 dist/
 .env
-*.log
-.DS_Store
-data/
+media/*.mp4
+media/*.part
