@@ -8,6 +8,8 @@ The API uses PostgreSQL (database `kido`). On startup it creates tables if neede
 
 - Node.js 18+
 - PostgreSQL 14+ (a local `postgresql-x64-18` service is expected in development)
+- FFmpeg/ffprobe on `PATH` when running without Docker
+- MinIO when running without Docker
 
 ## Setup
 
@@ -21,6 +23,23 @@ npm run dev
 The API listens on `http://localhost:4000`.
 
 Android emulator should use `http://10.0.2.2:4000/api`.
+
+### Complete local media stack
+
+The included Compose file starts PostgreSQL, MinIO, and the FFmpeg-enabled backend. MinIO data and PostgreSQL data use named persistent volumes.
+
+```bash
+docker compose up --build
+```
+
+If port 4000 is already used by a locally running backend, start Compose with `BACKEND_PORT=4001` and point KIDO Admin at `http://localhost:4001/api`.
+
+- API: `http://localhost:4000/api`
+- MinIO API: `http://localhost:9000`
+- MinIO console: `http://localhost:9001`
+- Bucket: `videos` (created automatically on first upload)
+
+Run `docker compose exec backend ffmpeg -version` to verify FFmpeg. For an Android emulator, set `MINIO_PUBLIC_URL=http://10.0.2.2:9000` before starting Compose so returned playlists are reachable from the emulator.
 
 ## Scripts
 
@@ -48,6 +67,14 @@ See `.env.example`.
 | `DB_PASSWORD` | `kido` | PostgreSQL password; change in production |
 | `DATABASE_URL` | unset | Optional connection URL; used when no `DB_*` values are configured |
 | `CACHE_REMOTE_MEDIA` | `false` | Download remote videos into `/app/media` at startup |
+| `ADMIN_API_KEY` | `kido-local-admin` | Required as `X-Admin-Key` for content mutations |
+| `MINIO_ENDPOINT` / `MINIO_PORT` | `127.0.0.1` / `9000` | Backend connection to MinIO |
+| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | local defaults | MinIO credentials; change outside local development |
+| `MINIO_BUCKET` | `videos` | HLS object bucket |
+| `MINIO_USE_SSL` | `false` | Enable for HTTPS MinIO |
+| `MINIO_PUBLIC_URL` | `http://127.0.0.1:9000` | Client-reachable MinIO origin used in playlist URLs |
+| `FFMPEG_PATH` / `FFPROBE_PATH` | command names | Override local binary paths if needed |
+| `MAX_UPLOAD_MB` | `500` | Multipart upload size ceiling |
 
 Do not commit secrets. None are required for the demo.
 
@@ -105,6 +132,12 @@ All routes are prefixed with `/api`.
 | GET | `/videos` | Catalog |
 | GET | `/videos/:id` | Single video |
 | GET | `/categories` | Category counts |
+| GET | `/activities` | Age/category-filterable activity catalog |
+| GET | `/admin/videos` | Admin catalog (`X-Admin-Key`) |
+| POST | `/admin/videos` | Multipart video upload, HLS processing, and publishing |
+| DELETE | `/admin/videos/:id` | Remove video metadata and its HLS objects |
+| GET/POST | `/admin/activities` | List/create reviewed activities |
+| PUT/DELETE | `/admin/activities/:id` | Update/delete an activity |
 | GET | `/recommendations/:childId` | Ranked feed (`?time=morning\|school\|after_school\|evening\|bedtime\|real`) |
 | GET | `/children/:id` | Child + runtime |
 | POST | `/children` | Create child |
@@ -144,6 +177,7 @@ GRANT ALL ON SCHEMA public TO kido;
 The app connects as user `kido` to database `kido`. Tables:
 
 - `videos`
+- `activities`
 - `parents`
 - `children`
 - `daily_usage`

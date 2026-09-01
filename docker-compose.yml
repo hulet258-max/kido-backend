@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kido
+      POSTGRES_USER: kido
+      POSTGRES_PASSWORD: kido
+    ports:
+      - "5432:5432"
+    volumes:
+      - kido-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kido -d kido"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-kidoadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-kido-local-secret}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - kido-minio:/data
+
+  backend:
+    build: .
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      CORS_ORIGIN: "*"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: kido
+      DB_USER: kido
+      DB_PASSWORD: kido
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-kido-local-admin}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-kidoadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-kido-local-secret}
+      MINIO_BUCKET: videos
+      MINIO_USE_SSL: "false"
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+      CACHE_REMOTE_MEDIA: "false"
+      MAX_UPLOAD_MB: 500
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+volumes:
+  kido-postgres:
+  kido-minio:

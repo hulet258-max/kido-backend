@@ -1,8 +1,7 @@
 import { ChildState, ParentAccount, Video, ViewingEvent } from '../models/types';
-import { seededVideos } from '../seed/videos';
 
 export class MemoryStore {
-  videos: Video[] = [...seededVideos];
+  videos: Video[] = [];
   parents: ParentAccount[] = [];
   children: Record<string, ChildState> = {};
 

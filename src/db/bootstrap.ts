@@ -1,10 +1,18 @@
 import { pool } from '../config/db';
-import { env } from '../config/env';
-import { seededVideos } from '../seed/videos';
-import { ingestCatalog } from '../services/mediaService';
+import { seededActivities } from '../seed/activities';
+
+const legacyDemoVideoIds = Array.from(
+  { length: 28 },
+  (_, index) => `video_${String(index + 1).padStart(3, '0')}`,
+);
 
 const schemaSql = `
 CREATE TABLE IF NOT EXISTS videos (
+  id TEXT PRIMARY KEY,
+  data JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS activities (
   id TEXT PRIMARY KEY,
   data JSONB NOT NULL
 );
@@ -47,6 +55,8 @@ CREATE TABLE IF NOT EXISTS viewing_events (
   language TEXT,
   orientation TEXT,
   reaction TEXT,
+  activity_id TEXT,
+  activity_type TEXT,
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -59,6 +69,8 @@ export async function bootstrapDatabase() {
   await pool.query('ALTER TABLE parents ADD COLUMN IF NOT EXISTS phone TEXT');
   await pool.query('ALTER TABLE children ADD COLUMN IF NOT EXISTS dislikes JSONB NOT NULL DEFAULT \'[]\'::jsonb');
   await pool.query('ALTER TABLE viewing_events ADD COLUMN IF NOT EXISTS reaction TEXT');
+  await pool.query('ALTER TABLE viewing_events ADD COLUMN IF NOT EXISTS activity_id TEXT');
+  await pool.query('ALTER TABLE viewing_events ADD COLUMN IF NOT EXISTS activity_type TEXT');
   await pool.query(
     'CREATE UNIQUE INDEX IF NOT EXISTS parents_phone_idx ON parents (phone) WHERE phone IS NOT NULL AND phone <> \'\'',
   );
@@ -68,16 +80,15 @@ export async function bootstrapDatabase() {
   await pool.query(`DELETE FROM children WHERE id IN ('child_001', 'child_002')`);
   await pool.query(`DELETE FROM parents WHERE id = 'parent_001'`);
 
-  for (const video of seededVideos) {
-    await pool.query('INSERT INTO videos (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO UPDATE SET data = $2::jsonb', [
-      video.id,
-      JSON.stringify(video),
-    ]);
-  }
+  // Remove the old demo catalog without touching videos uploaded by admins.
+  await pool.query('DELETE FROM videos WHERE id = ANY($1::text[])', [
+    legacyDemoVideoIds,
+  ]);
 
-  if (env.cacheRemoteMedia) {
-    void ingestCatalog(seededVideos).catch((err) => {
-      console.error('Public clip ingest failed', err);
-    });
+  for (const activity of seededActivities) {
+    await pool.query(
+      'INSERT INTO activities (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO NOTHING',
+      [activity.id, JSON.stringify(activity)],
+    );
   }
 }

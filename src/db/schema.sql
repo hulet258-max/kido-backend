@@ -3,6 +3,11 @@ CREATE TABLE IF NOT EXISTS videos (
   data JSONB NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS activities (
+  id TEXT PRIMARY KEY,
+  data JSONB NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS parents (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -38,6 +43,9 @@ CREATE TABLE IF NOT EXISTS viewing_events (
   category TEXT,
   language TEXT,
   orientation TEXT,
+  reaction TEXT,
+  activity_id TEXT,
+  activity_type TEXT,
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

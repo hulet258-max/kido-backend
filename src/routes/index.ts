@@ -1,9 +1,13 @@
 import { Router } from 'express';
 import { authController, loginSchema, signupSchema } from '../controllers/authController';
+import { activityController } from '../controllers/activityController';
 import { childController, childCreateSchema } from '../controllers/childController';
 import { eventController, eventSchema } from '../controllers/eventController';
 import { parentController } from '../controllers/parentController';
 import { videoController } from '../controllers/videoController';
+import { adminVideoController } from '../controllers/adminVideoController';
+import { requireAdmin } from '../middleware/adminAuth';
+import { videoUpload } from '../middleware/videoUpload';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { validate } from '../middleware/validate';
 
@@ -19,6 +23,15 @@ router.post('/auth/login', validate(loginSchema), asyncHandler(authController.lo
 router.get('/videos', asyncHandler(videoController.list));
 router.get('/videos/:id', asyncHandler(videoController.get));
 router.get('/categories', asyncHandler(videoController.categories));
+router.get('/activities', asyncHandler(activityController.list));
+
+router.get('/admin/videos', requireAdmin, asyncHandler(adminVideoController.list));
+router.post('/admin/videos', requireAdmin, videoUpload.single('video'), asyncHandler(adminVideoController.upload));
+router.delete('/admin/videos/:id', requireAdmin, asyncHandler(adminVideoController.remove));
+router.get('/admin/activities', requireAdmin, asyncHandler(activityController.list));
+router.post('/admin/activities', requireAdmin, asyncHandler(activityController.create));
+router.put('/admin/activities/:id', requireAdmin, asyncHandler(activityController.update));
+router.delete('/admin/activities/:id', requireAdmin, asyncHandler(activityController.remove));
 
 router.get('/recommendations/:childId', asyncHandler(parentController.recommendations));
 

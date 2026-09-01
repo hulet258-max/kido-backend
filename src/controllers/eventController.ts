@@ -19,11 +19,17 @@ export const eventSchema = z.object({
     'video_liked',
     'video_disliked',
     'video_favorited',
+    'video_unfavorited',
+    'activity_presented',
+    'activity_completed',
+    'activity_skipped',
   ]),
   watchDurationSeconds: z.number().min(0),
   percentageWatched: z.number().min(0).max(100),
   category: z.string().optional(),
   reaction: z.enum(['up', 'down', 'none']).optional(),
+  activityId: z.string().optional(),
+  activityType: z.enum(['quiz', 'order', 'match']).optional(),
   timestamp: z.string().optional(),
 });
 
@@ -44,12 +50,14 @@ export const eventController = {
       language: video?.language,
       orientation: video?.orientation,
       reaction: body.reaction,
+      activityId: body.activityId,
+      activityType: body.activityType,
       timestamp: body.timestamp ?? new Date().toISOString(),
     };
     await childRepository.addEvent(event);
     child.events.push(event);
 
-    if (video) {
+    if (video && !body.eventType.startsWith('activity_')) {
       const delta = scoreForEvent(event.eventType, event.percentageWatched, event.watchDurationSeconds);
       child.profile.interestScores = applyInterestDelta(child.profile.interestScores, video.category, delta);
       child.profile.interestDeltas = {
@@ -58,6 +66,9 @@ export const eventController = {
       };
       if (event.eventType === 'video_favorited' && !child.favorites.includes(video.id)) {
         child.favorites.push(video.id);
+      }
+      if (event.eventType === 'video_unfavorited') {
+        child.favorites = child.favorites.filter((id) => id !== video.id);
       }
       if (event.eventType === 'video_liked') {
         if (!child.likes.includes(video.id)) child.likes.push(video.id);

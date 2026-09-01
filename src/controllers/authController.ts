@@ -19,7 +19,7 @@ const childSchema = z.object({
   blockedCategories: z.array(z.string()).default([]),
   dailyLimitMinutes: z.number().default(90),
   sessionLimitMinutes: z.number().default(20),
-  breakMinutes: z.number().default(15),
+  breakMinutes: z.number().int().min(1).max(120).default(15),
   religiousContentEnabled: z.boolean().default(false),
   religiousPreference: z.enum(['christian', 'muslim', 'other', 'none']).default('none'),
 });

@@ -23,7 +23,7 @@ export const childCreateSchema = z.object({
   languageMix: z.number().min(0).max(100).default(70),
   dailyLimitMinutes: z.number().default(90),
   sessionLimitMinutes: z.number().default(30),
-  breakMinutes: z.number().default(15),
+  breakMinutes: z.number().int().min(1).max(120).default(15),
   allowedCategories: z.array(z.string()).default([]),
   blockedCategories: z.array(z.string()).default([]),
   preferredCategories: z.array(z.string()).default([]),

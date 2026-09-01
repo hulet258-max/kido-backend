@@ -33,7 +33,29 @@ export type EventType =
   | 'video_replayed'
   | 'video_liked'
   | 'video_disliked'
-  | 'video_favorited';
+  | 'video_favorited'
+  | 'video_unfavorited'
+  | 'activity_presented'
+  | 'activity_completed'
+  | 'activity_skipped';
+
+export type ActivityType = 'quiz' | 'order' | 'match';
+
+export interface Activity {
+  id: string;
+  category: VideoCategory;
+  minAge: number;
+  maxAge: number;
+  type: ActivityType;
+  prompt: string;
+  options?: string[];
+  correctAnswer?: string;
+  items?: string[];
+  correctOrder?: string[];
+  pairs?: Record<string, string>;
+  successFeedback: string;
+  retryFeedback: string;
+}
 
 export type AgeGroup = '3-5' | '6-8' | '9-12' | '13-15';
 
@@ -117,6 +139,8 @@ export interface ViewingEvent {
   language?: LanguageCode;
   orientation?: VideoOrientation;
   reaction?: 'up' | 'down' | 'none';
+  activityId?: string;
+  activityType?: ActivityType;
   timestamp: string;
 }
 

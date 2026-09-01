@@ -23,6 +23,8 @@ function mapEvent(row: {
   language: ViewingEvent['language'] | null;
   orientation: ViewingEvent['orientation'] | null;
   reaction: ViewingEvent['reaction'] | null;
+  activity_id: string | null;
+  activity_type: ViewingEvent['activityType'] | null;
   timestamp: Date | string;
 }): ViewingEvent {
   return {
@@ -36,6 +38,8 @@ function mapEvent(row: {
     language: row.language ?? undefined,
     orientation: row.orientation ?? undefined,
     reaction: row.reaction ?? undefined,
+    activityId: row.activity_id ?? undefined,
+    activityType: row.activity_type ?? undefined,
     timestamp: new Date(row.timestamp).toISOString(),
   };
 }
@@ -59,10 +63,12 @@ async function hydrate(row: ChildRow): Promise<ChildState> {
     language: ViewingEvent['language'] | null;
     orientation: ViewingEvent['orientation'] | null;
     reaction: ViewingEvent['reaction'] | null;
+    activity_id: string | null;
+    activity_type: ViewingEvent['activityType'] | null;
     timestamp: Date;
   }>(
     `SELECT id, child_id, video_id, event_type, watch_duration_seconds, percentage_watched,
-            category, language, orientation, reaction, timestamp
+            category, language, orientation, reaction, activity_id, activity_type, timestamp
      FROM viewing_events WHERE child_id = $1 ORDER BY timestamp`,
     [row.id],
   );
@@ -174,8 +180,8 @@ export const childRepository = {
   async addEvent(event: ViewingEvent): Promise<void> {
     await query(
       `INSERT INTO viewing_events
-        (id, child_id, video_id, event_type, watch_duration_seconds, percentage_watched, category, language, orientation, reaction, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        (id, child_id, video_id, event_type, watch_duration_seconds, percentage_watched, category, language, orientation, reaction, activity_id, activity_type, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
       [
         event.id,
         event.childId,
@@ -187,6 +193,8 @@ export const childRepository = {
         event.language ?? null,
         event.orientation ?? null,
         event.reaction ?? null,
+        event.activityId ?? null,
+        event.activityType ?? null,
         event.timestamp,
       ],
     );

@@ -13,6 +13,19 @@ export const videoRepository = {
     return rows[0]?.data ? withLocalPlayback(rows[0].data) : undefined;
   },
 
+  async save(video: Video): Promise<Video> {
+    await query(
+      'INSERT INTO videos (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO UPDATE SET data = $2::jsonb',
+      [video.id, JSON.stringify(video)],
+    );
+    return video;
+  },
+
+  async delete(id: string): Promise<boolean> {
+    const result = await query('DELETE FROM videos WHERE id = $1', [id]);
+    return (result.rowCount ?? 0) > 0;
+  },
+
   async categories() {
     const videos = await this.all();
     const unique = [...new Set(videos.map((v) => v.category))];
