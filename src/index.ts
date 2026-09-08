@@ -1,8 +1,8 @@
 import cors from 'cors';
 import express from 'express';
-import { pool } from './config/db';
 import { env } from './config/env';
-import { bootstrapDatabase } from './db/bootstrap';
+import { initializeServices } from './services/startupService';
+import { logError, logInfo } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { router } from './routes';
 import { mediaDir } from './services/mediaService';
@@ -16,31 +16,19 @@ app.use(errorHandler);
 
 async function start() {
   try {
-    await pool.query('SELECT 1');
-    await bootstrapDatabase();
+    await initializeServices();
   } catch (err) {
-    console.error('Failed to connect to PostgreSQL.');
-    if (env.databaseUrl) {
-      console.error('Database connection source: DATABASE_URL');
-    } else {
-      console.error(`Database: ${env.dbName}; host: ${env.dbHost}:${env.dbPort}; user: ${env.dbUser}`);
-    }
-    console.error(err);
+    logError('Startup', 'Backend cannot start', err);
     process.exit(1);
   }
 
-  const server = app.listen(env.port, () => {
-    console.log(`KIDO backend listening on http://localhost:${env.port}`);
-    console.log(`PostgreSQL database: kido`);
+  const server = app.listen(env.port, '0.0.0.0', () => {
+    logInfo('HTTP', `Listening on 0.0.0.0:${env.port}`);
   });
 
   server.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`Port ${env.port} is already in use.`);
-      console.error('Stop the other process, or set PORT to a free port in .env');
-      process.exit(1);
-    }
-    throw err;
+    logError('HTTP', `Listen failed on port ${env.port}`, err);
+    process.exit(1);
   });
 }
 

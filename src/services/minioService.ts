@@ -3,23 +3,29 @@ import { readdir, stat } from 'fs/promises';
 import path from 'path';
 import { Client } from 'minio';
 import { env } from '../config/env';
+import { retryableOnce } from '../utils/retry';
+import { timeoutTransport } from '../utils/timeoutTransport';
+import { logError } from '../utils/logger';
 
-const client = new Client({
+const clientOptions = {
   endPoint: env.minioEndpoint,
   port: env.minioPort,
   useSSL: env.minioUseSsl,
   accessKey: env.minioAccessKey,
   secretKey: env.minioSecretKey,
+};
+const client = new Client(clientOptions);
+const startupClient = new Client({
+  ...clientOptions,
+  transport: timeoutTransport(env.minioUseSsl),
+  retryOptions: { disableRetry: true },
 });
 
-let bucketReady: Promise<void> | null = null;
-
-export function ensureVideoBucket() {
-  bucketReady ??= (async () => {
-    if (!(await client.bucketExists(env.minioBucket))) {
-      await client.makeBucket(env.minioBucket);
+export const ensureVideoBucket = retryableOnce(async () => {
+    if (!(await startupClient.bucketExists(env.minioBucket))) {
+      await startupClient.makeBucket(env.minioBucket);
     }
-    await client.setBucketPolicy(
+    await startupClient.setBucketPolicy(
       env.minioBucket,
       JSON.stringify({
         Version: '2012-10-17',
@@ -31,11 +37,9 @@ export function ensureVideoBucket() {
         }],
       }),
     );
-  })();
-  return bucketReady;
-}
+});
 
-export async function uploadHlsDirectory(videoId: string, directory: string) {
+async function uploadDirectory(videoId: string, directory: string) {
   await ensureVideoBucket();
   const names = await readdir(directory);
   for (const name of names) {
@@ -54,7 +58,7 @@ export async function uploadHlsDirectory(videoId: string, directory: string) {
   return `${env.minioPublicUrl.replace(/\/$/, '')}/${env.minioBucket}/${videoId}/playlist.m3u8`;
 }
 
-export async function deleteVideoObjects(videoId: string) {
+async function deleteObjects(videoId: string) {
   await ensureVideoBucket();
   const names: string[] = [];
   const stream = client.listObjectsV2(env.minioBucket, `${videoId}/`, true);
@@ -64,4 +68,20 @@ export async function deleteVideoObjects(videoId: string) {
     stream.on('end', resolve);
   });
   if (names.length) await client.removeObjects(env.minioBucket, names);
+}
+
+export async function uploadHlsDirectory(videoId: string, directory: string) {
+  try { return await uploadDirectory(videoId, directory); }
+  catch (error) {
+    logError('MinIO', 'Upload HLS objects failed', error);
+    throw error;
+  }
+}
+
+export async function deleteVideoObjects(videoId: string) {
+  try { await deleteObjects(videoId); }
+  catch (error) {
+    logError('MinIO', 'Delete video objects failed', error);
+    throw error;
+  }
 }

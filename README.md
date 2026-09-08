@@ -2,7 +2,7 @@
 
 Node.js + TypeScript + Express API for the KIDO children's video platform.
 
-The API uses PostgreSQL (database `kido`). On startup it creates tables if needed and seeds demo data when the catalog is empty.
+The API uses PostgreSQL (database `kido`) and MinIO for uploaded videos. Startup verifies both services and FFmpeg/ffprobe before accepting requests. It creates tables, removes legacy demo records, and inserts starter activities. A new database has an empty video catalog until videos are uploaded.
 
 ## Requirements
 
@@ -80,6 +80,8 @@ Do not commit secrets. None are required for the demo.
 
 ## Docker / EasyPanel deployment
 
+For deployment to your existing Easypanel services, follow [the deployment guide](DEPLOYMENT.md) and copy the settings from `.env.production.example` into Easypanel Environment. Replace all placeholders there. The backend image connects to PostgreSQL and MinIO; it does not start those servers inside the API container.
+
 The production image compiles TypeScript and starts the existing server with
 `node dist/index.js` (the same entry point used by `npm start`). No separate
 `app.js` entry point is needed.
@@ -88,13 +90,13 @@ When the Git repository is connected to EasyPanel, create a PostgreSQL service
 and an App service with these settings:
 
 - Build method: `Dockerfile`
-- Build context / root directory: `/kido-backend`
+- Build context / root directory: `/` for `hulet258-max/kido-backend` (`/kido-backend` only when that directory is inside a larger repository)
 - Dockerfile: `Dockerfile`
 - Container port: `4000`
 - Health check path: `/api/health`
 - Persistent volume: mount to `/app/media`
 
-Set these App environment variables in EasyPanel:
+The complete production settings, including required MinIO configuration, are in `.env.production.example`. Database settings look like:
 
 ```env
 NODE_ENV=production
@@ -116,11 +118,11 @@ To build and run the image locally:
 
 ```bash
 docker build -t kido-backend .
-docker run --rm -p 4000:4000 \
-  -e DB_HOST=host.docker.internal \
-  -e DB_NAME=kido -e DB_USER=kido -e DB_PASSWORD=kido \
-  kido-backend
+docker run --rm -p 4000:4000 --env-file .env.production \
+  --network YOUR_EXISTING_NETWORK -v kido-media:/app/media kido-backend
 ```
+
+Create `.env.production` from `.env.production.example`, replace every placeholder, and use hosts reachable from the container. See the deployment guide for the complete setup.
 
 ## APIs
 
@@ -185,13 +187,9 @@ The app connects as user `kido` to database `kido`. Tables:
 
 If `npm run dev` fails with `EADDRINUSE`, another process is already bound to port 4000. Stop it (or change `PORT` in `.env`) and start again.
 
-## Seeded demo data
+## Initial data
 
-- Parent: Demo Parent, PIN `1234`
-- Children: Sami (8), Hana (6)
-- 28 openly licensed / sample MP4s
-- Seven days of viewing history
-- Sami today: 78 / 90 minutes
+Startup inserts starter activities and removes the old demo parent, children, viewing history, and legacy demo video IDs. It does not seed demo accounts or videos. Register accounts through the app and upload videos through KIDO Admin.
 
 ## Flutter connection
 
@@ -200,5 +198,5 @@ The Flutter app tries this API first and falls back to local demo repositories i
 ## Assumptions
 
 - Data lives in PostgreSQL database `kido` and survives server restarts.
-- Demo rows are inserted only when `videos` is empty.
+- Starter activities are inserted if missing. Legacy demo IDs are removed at startup.
 - PIN verification is a demo stand-in, not production auth.

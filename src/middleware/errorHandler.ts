@@ -1,7 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
 import multer from 'multer';
+import { logError } from '../utils/logger';
 
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+  logError('HTTP', 'Request failed', err);
   if (err instanceof multer.MulterError) {
     const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 422;
     res.status(status).json({ success: false, error: err.code === 'LIMIT_FILE_SIZE' ? 'Video file is too large' : err.message });

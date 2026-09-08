@@ -1,6 +1,14 @@
 import dotenv from 'dotenv';
+import { validateEnvironment } from './validate';
+import { logError } from '../utils/logger';
 
 dotenv.config();
+try {
+  validateEnvironment();
+} catch (error) {
+  logError('Configuration', 'Validation failed', error);
+  process.exit(1);
+}
 
 const usesDatabaseFields = [
   'DB_HOST',

@@ -1,5 +1,6 @@
 import { Pool, QueryResultRow } from 'pg';
 import { env } from './env';
+import { logError } from '../utils/logger';
 
 export const pool = new Pool({
   ...(env.databaseUrl
@@ -12,7 +13,10 @@ export const pool = new Pool({
         password: env.dbPassword,
       }),
   max: 10,
+  connectionTimeoutMillis: 5000,
 });
+
+pool.on('error', (error) => logError('PostgreSQL', 'Idle connection error', error));
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
