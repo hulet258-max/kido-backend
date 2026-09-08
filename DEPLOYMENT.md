@@ -6,8 +6,8 @@
 2. In MinIO Domains, add an HTTPS domain with internal protocol HTTP, target port **9000**, and path `/`. The supplied `console-mgnot-minio.v3rao3.easypanel.host` address targets the management console on **9001** and cannot be used for playback.
 3. Create the backend App service from GitHub `hulet258-max/kido-backend`, branch `main`, Build Path `/`. Choose the Dockerfile builder and path `Dockerfile`. Leave the command override empty.
 4. Copy `.env.production.example` into the backend's Environment editor. Supply your actual PostgreSQL password, admin key, and MinIO password there. Do not put secrets into the Dockerfile or commit them.
-5. Keep `DB_HOST=mgnot_kidodb`, `DB_PORT=5432`, `DB_NAME=kido`, and `DB_USER=postgres` if these match the database Credentials page. Verify `MINIO_ENDPOINT=kido_minio` is the actual reachable internal MinIO hostname; project/service names may differ. Endpoints have no scheme or port suffix.
-6. Set `MINIO_PUBLIC_URL` to the new HTTPS storage API origin. Set `MINIO_SECRET_KEY` to the real value corresponding to `MINIO_ACCESS_KEY=kido-storage-admin`. `MINIO_USE_SSL=false` describes the internal HTTP connection; public HTTPS is terminated by Easypanel.
+5. Keep `DB_HOST=mgnot_kidodb`, `DB_PORT=5432`, `DB_NAME=kido`, and `DB_USER=postgres` if these match the database Credentials page. For this deployment use `MINIO_ENDPOINT=mgnot-minio.v3rao3.easypanel.host`, `MINIO_PORT=443`, and `MINIO_USE_SSL=true`. The endpoint has no scheme or port suffix. Verify this domain routes to the MinIO API before deploying. MinIO can reject underscore-containing internal hostnames such as `mgnot_minio` even when Docker resolves them.
+6. Set `MINIO_PUBLIC_URL=https://mgnot-minio.v3rao3.easypanel.host`. Set `MINIO_SECRET_KEY` to the real value corresponding to `MINIO_ACCESS_KEY=kido-storage-admin`. The backend connects over HTTPS on port 443; Easypanel forwards to internal HTTP port 9000. Do not use port 9000 with the public hostname unless it is separately published. A private connection is also possible using a reachable internal DNS alias without underscores, port 9000, and SSL false.
 7. Set `CORS_ORIGIN` to the exact admin browser origin, such as `http://localhost:5173`. The current implementation supports a single origin, not a comma-separated list.
 8. Mount a named backend volume at `/app/media`. Keep MinIO's persistent `/data` volume and PostgreSQL's existing data storage. Video objects live in MinIO, separately from database metadata.
 9. Route the backend domain to HTTP port `4000`, path `/`, with public HTTPS. Save and Deploy after changing settings.
@@ -21,7 +21,8 @@ Successful startup logs these stages before opening the HTTP listener:
 ```text
 [PostgreSQL] Connected: host=mgnot_kidodb port=5432 database=kido
 [PostgreSQL] Database initialized
-[MinIO] Connected: host=kido_minio port=9000
+[MinIO] Connecting: protocol=https host=mgnot-minio.v3rao3.easypanel.host port=443 bucket=videos
+[MinIO] Connected: host=mgnot-minio.v3rao3.easypanel.host port=443
 [MinIO] Bucket ready: videos
 [Media] FFmpeg and ffprobe available
 [HTTP] Listening on 0.0.0.0:4000

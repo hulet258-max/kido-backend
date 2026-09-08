@@ -18,6 +18,7 @@ export async function initializeServices() {
     logError('PostgreSQL', 'Database initialization failed', error);
     throw new Error('PostgreSQL database initialization failed');
   }
+  logInfo('MinIO', `Connecting: protocol=${env.minioUseSsl ? 'https' : 'http'} host=${env.minioEndpoint} port=${env.minioPort} bucket=${env.minioBucket}`);
   await retryConnection('MinIO', ensureVideoBucket);
   logInfo('MinIO', `Connected: host=${env.minioEndpoint} port=${env.minioPort}`);
   logInfo('MinIO', `Bucket ready: ${env.minioBucket}`);

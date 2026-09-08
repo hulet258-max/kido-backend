@@ -12,8 +12,16 @@ export function logInfo(service: string, message: string) {
   console.info(`[${service}] ${sanitize(message)}`);
 }
 
+function describeError(error: unknown, depth = 0): string {
+  if (!(error instanceof Error)) return 'Unexpected error';
+  const code = 'code' in error && typeof error.code === 'string' ? `${error.code}: ` : '';
+  const summary = `${code}${error.message.trim() || error.name || 'Error without a message'}`;
+  if (depth >= 3) return summary;
+  const children: unknown[] = error instanceof AggregateError ? error.errors.slice(0, 4) : [];
+  if (error.cause !== undefined) children.push(error.cause);
+  return children.length ? `${summary} [${children.map((child) => describeError(child, depth + 1)).join('; ')}]` : summary;
+}
+
 export function logError(service: string, operation: string, error: unknown) {
-  const detail = error instanceof Error ? error.message : 'Unexpected error';
-  const code = error instanceof Error && 'code' in error && typeof error.code === 'string' ? `${error.code}: ` : '';
-  console.error(`[${service}] ${sanitize(`${operation}: ${code}${detail}`)}`);
+  console.error(`[${service}] ${sanitize(`${operation}: ${describeError(error)}`)}`);
 }

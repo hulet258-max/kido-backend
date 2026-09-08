@@ -54,6 +54,27 @@ test('error logger does not serialize headers, body or arbitrary error fields', 
   assert.deepEqual(output, ['[MinIO] Upload failed: ECONNREFUSED: Connection refused']);
 });
 
+test('blank aggregate errors expose nested connection diagnostics and redact their secrets', (t) => {
+  const output: string[] = [];
+  t.mock.method(console, 'error', (line: string) => output.push(line));
+  const connection = Object.assign(new Error('connect failed postgres://user:secret@db/kido'), { code: 'ECONNREFUSED' });
+  logError('MinIO', 'Connection failed', new AggregateError([connection, new Error('')], ''));
+  assert.ok(output[0].includes('AggregateError'));
+  assert.ok(output[0].includes('ECONNREFUSED'));
+  assert.ok(output[0].includes('postgres://[REDACTED]@db/kido'));
+  assert.ok(!output[0].includes('user:secret'));
+});
+
+test('error causes cannot recurse forever', (t) => {
+  const output: string[] = [];
+  t.mock.method(console, 'error', (line: string) => output.push(line));
+  const error = new Error('');
+  error.cause = error;
+  logError('MinIO', 'Connection failed', error);
+  assert.ok(output[0].includes('Error'));
+  assert.ok(output[0].length < 200);
+});
+
 const production = {
   NODE_ENV: 'production', DB_HOST: 'mgnot_kidodb', DB_NAME: 'kido', DB_USER: 'postgres', DB_PASSWORD: 'test-db-secret',
   ADMIN_API_KEY: 'test-admin-key', MINIO_ENDPOINT: 'kido_minio', MINIO_ACCESS_KEY: 'kido-storage-admin',
