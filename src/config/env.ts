@@ -19,6 +19,8 @@ const usesDatabaseFields = [
 ].some((key) => Boolean(process.env[key]?.trim()));
 
 export const env = {
+  chapaSecretKey: process.env.CHAPA_SECRET_KEY?.trim() ?? '',
+  publicApiUrl: process.env.PUBLIC_API_URL?.trim() ?? '',
   port: Number(process.env.PORT ?? 4000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   corsOrigin: process.env.CORS_ORIGIN ?? '*',

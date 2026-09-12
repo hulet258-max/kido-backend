@@ -25,6 +25,19 @@ CREATE TABLE IF NOT EXISTS parents (
   child_ids JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
+CREATE TABLE IF NOT EXISTS signup_payments (
+  tx_ref TEXT PRIMARY KEY,
+  token_hash TEXT NOT NULL,
+  signup JSONB NOT NULL,
+  months INTEGER NOT NULL,
+  amount INTEGER NOT NULL,
+  checkout_url TEXT,
+  parent_id TEXT REFERENCES parents(id),
+  paid_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS children (
   id TEXT PRIMARY KEY,
   parent_id TEXT REFERENCES parents(id) ON DELETE SET NULL,

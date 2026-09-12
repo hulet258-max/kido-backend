@@ -36,14 +36,14 @@ export const loginSchema = z.object({
   pin: z.string().regex(/^\d{4}$/),
 });
 
-async function sessionPayload(parentId: string) {
+export async function sessionPayload(parentId: string) {
   const parent = await parentRepository.getById(parentId);
   if (!parent) return null;
   const children = await childRepository.listByParent(parent.id);
   return { parent, children };
 }
 
-function profileFromSignup(body: z.infer<typeof signupSchema>['child']): ChildProfile {
+export function profileFromSignup(body: z.infer<typeof signupSchema>['child']): ChildProfile {
   const preferred = body.preferredCategories.length ? body.preferredCategories : ['stories', 'animals', 'education'];
   return {
     id: `child_${randomUUID()}`,
@@ -89,22 +89,7 @@ function profileFromSignup(body: z.infer<typeof signupSchema>['child']): ChildPr
 
 export const authController = {
   async signup(req: Request, res: Response) {
-    const body = req.body as z.infer<typeof signupSchema>;
-    const phone = digits(body.phone);
-    if (phone.length < 8) return fail(res, 'Enter a valid phone number', 422);
-    const existing = await parentRepository.findByPhone(phone);
-    if (existing) return fail(res, 'That phone number already has an account', 409);
-    const parent = await parentRepository.create({
-      id: `parent_${randomUUID()}`,
-      name: body.name,
-      phone,
-      pin: body.pin,
-      childIds: [],
-    });
-    const profile = profileFromSignup(body.child);
-    await childRepository.create(profile, parent.id);
-    const session = await sessionPayload(parent.id);
-    return ok(res, session, 201);
+    return fail(res, 'Choose a subscription and complete payment to create your account', 402);
   },
 
   async login(req: Request, res: Response) {

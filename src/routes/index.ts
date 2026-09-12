@@ -1,3 +1,4 @@
+import { paymentController, checkoutSchema, verifyCheckoutSchema } from '../controllers/paymentController';
 import { Router } from 'express';
 import { authController, loginSchema, signupSchema } from '../controllers/authController';
 import { activityController } from '../controllers/activityController';
@@ -16,6 +17,11 @@ export const router = Router();
 router.get('/health', asyncHandler(async (_req, res) => {
   res.json({ success: true, data: { status: 'ok', name: 'KIDO', database: 'kido' } });
 }));
+
+router.get('/payments/plans', asyncHandler(paymentController.plans));
+router.post('/payments/initialize', validate(checkoutSchema), asyncHandler(paymentController.initialize));
+router.post('/payments/verify', validate(verifyCheckoutSchema), asyncHandler(paymentController.verify));
+router.get('/payments/return', asyncHandler(paymentController.returned));
 
 router.post('/auth/signup', validate(signupSchema), asyncHandler(authController.signup));
 router.post('/auth/login', validate(loginSchema), asyncHandler(authController.login));
