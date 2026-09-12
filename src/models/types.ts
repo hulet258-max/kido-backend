@@ -121,6 +121,7 @@ export interface ChildProfile {
 }
 
 export interface ParentAccount {
+  email?: string;
   id: string;
   name: string;
   pin: string;

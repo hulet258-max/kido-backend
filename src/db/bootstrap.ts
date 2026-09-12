@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS parents (
   name TEXT NOT NULL,
   pin TEXT NOT NULL,
   phone TEXT,
+  email TEXT,
   child_ids JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
@@ -30,7 +31,7 @@ CREATE TABLE IF NOT EXISTS signup_payments (
   token_hash TEXT NOT NULL,
   signup JSONB NOT NULL,
   months INTEGER NOT NULL,
-  amount INTEGER NOT NULL,
+  amount NUMERIC(12,2) NOT NULL,
   checkout_url TEXT,
   parent_id TEXT REFERENCES parents(id),
   paid_at TIMESTAMPTZ,
@@ -80,6 +81,8 @@ CREATE INDEX IF NOT EXISTS daily_usage_child_idx ON daily_usage (child_id);
 export async function bootstrapDatabase() {
   await pool.query(schemaSql);
   await pool.query('ALTER TABLE parents ADD COLUMN IF NOT EXISTS phone TEXT');
+  await pool.query('ALTER TABLE parents ADD COLUMN IF NOT EXISTS email TEXT');
+  await pool.query('ALTER TABLE signup_payments ALTER COLUMN amount TYPE NUMERIC(12,2)');
   await pool.query('ALTER TABLE children ADD COLUMN IF NOT EXISTS dislikes JSONB NOT NULL DEFAULT \'[]\'::jsonb');
   await pool.query('ALTER TABLE viewing_events ADD COLUMN IF NOT EXISTS reaction TEXT');
   await pool.query('ALTER TABLE viewing_events ADD COLUMN IF NOT EXISTS activity_id TEXT');

@@ -21,6 +21,9 @@ router.get('/health', asyncHandler(async (_req, res) => {
 router.get('/payments/plans', asyncHandler(paymentController.plans));
 router.post('/payments/initialize', validate(checkoutSchema), asyncHandler(paymentController.initialize));
 router.post('/payments/verify', validate(verifyCheckoutSchema), asyncHandler(paymentController.verify));
+router.post('/payments/finalize', validate(verifyCheckoutSchema), asyncHandler(paymentController.finalize));
+router.post('/v1/public/chapa/finalize', validate(verifyCheckoutSchema), asyncHandler(paymentController.finalize));
+router.get('/v1/public/chapa/return', asyncHandler(paymentController.returned));
 router.get('/payments/return', asyncHandler(paymentController.returned));
 
 router.post('/auth/signup', validate(signupSchema), asyncHandler(authController.signup));
@@ -33,6 +36,7 @@ router.get('/activities', asyncHandler(activityController.list));
 
 router.get('/admin/videos', requireAdmin, asyncHandler(adminVideoController.list));
 router.post('/admin/videos', requireAdmin, videoUpload.single('video'), asyncHandler(adminVideoController.upload));
+router.post('/admin/videos/from-folder', requireAdmin, asyncHandler(adminVideoController.fromFolder));
 router.delete('/admin/videos/:id', requireAdmin, asyncHandler(adminVideoController.remove));
 router.get('/admin/activities', requireAdmin, asyncHandler(activityController.list));
 router.post('/admin/activities', requireAdmin, asyncHandler(activityController.create));

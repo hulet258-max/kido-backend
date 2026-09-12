@@ -1,4 +1,16 @@
 export function validateEnvironment(source: NodeJS.ProcessEnv = process.env) {
+  if (source.SUBSCRIPTION_MONTHLY_BIRR !== undefined &&
+      (!Number.isSafeInteger(Number(source.SUBSCRIPTION_MONTHLY_BIRR)) || Number(source.SUBSCRIPTION_MONTHLY_BIRR) <= 0)) {
+    throw new Error('SUBSCRIPTION_MONTHLY_BIRR must be a positive whole number');
+  }
+  if (source.CHAPA_RETURN_URL?.trim()) {
+    let url: URL;
+    try { url = new URL(source.CHAPA_RETURN_URL); }
+    catch { throw new Error('CHAPA_RETURN_URL must be a public HTTPS URL'); }
+    if (url.protocol !== 'https:' || url.username || url.password || url.hash) {
+      throw new Error('CHAPA_RETURN_URL must be a public HTTPS URL without credentials or a fragment');
+    }
+  }
   if (source.NODE_ENV !== 'production') return;
   const usesFields = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'].some((key) => source[key]?.trim());
   const required = [

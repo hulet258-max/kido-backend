@@ -25,6 +25,7 @@ const childSchema = z.object({
 });
 
 export const signupSchema = z.object({
+  email: z.string().trim().email('Enter a valid email address').max(254).transform(value => value.toLowerCase()),
   name: z.string().min(1),
   phone: z.string().min(8),
   pin: z.string().regex(/^\d{4}$/),

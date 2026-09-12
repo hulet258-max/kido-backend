@@ -19,6 +19,9 @@ const usesDatabaseFields = [
 ].some((key) => Boolean(process.env[key]?.trim()));
 
 export const env = {
+  chapaReturnUrl: process.env.CHAPA_RETURN_URL?.trim() || `${(process.env.PUBLIC_API_URL ?? '').replace(/\/$/, '')}/payments/return`,
+  subscriptionMonthlyBirr: Number(process.env.SUBSCRIPTION_MONTHLY_BIRR ?? 150),
+  subscriptionPaymentInstructions: process.env.SUBSCRIPTION_PAYMENT_INSTRUCTIONS?.trim() || 'Pay securely with Chapa without leaving the app.',
   chapaSecretKey: process.env.CHAPA_SECRET_KEY?.trim() ?? '',
   publicApiUrl: process.env.PUBLIC_API_URL?.trim() ?? '',
   port: Number(process.env.PORT ?? 4000),

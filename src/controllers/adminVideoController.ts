@@ -1,11 +1,12 @@
-import { randomUUID } from 'crypto';
 import { rm } from 'fs/promises';
+import path from 'path';
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { Video, VideoCategory } from '../models/types';
+import { VideoCategory } from '../models/types';
 import { videoRepository } from '../repositories/videoRepository';
-import { probeVideo, segmentToHls } from '../services/hlsService';
-import { deleteVideoObjects, uploadHlsDirectory } from '../services/minioService';
+import { deleteVideoObjects } from '../services/minioService';
+import { publishVideoFromPath } from '../services/videoPublishService';
+import { incrementedTitle, listVideoFilesInFolder } from '../utils/videoImport';
 import { fail, ok } from '../utils/http';
 
 const categories = [
@@ -39,6 +40,16 @@ const uploadSchema = z.object({
   thumbnailUrl: z.string().url().optional().or(z.literal('')),
 });
 
+const folderSchema = uploadSchema.extend({
+  folder: z.string().trim().min(1).max(500),
+});
+
+function metadataError(parsed: z.SafeParseReturnType<unknown, { minAge: number; maxAge: number }>) {
+  if (!parsed.success) return 'Video metadata is invalid';
+  if (parsed.data.minAge > parsed.data.maxAge) return 'Minimum age cannot exceed maximum age';
+  return null;
+}
+
 export const adminVideoController = {
   async list(_req: Request, res: Response) {
     return ok(res, await videoRepository.all());
@@ -46,47 +57,55 @@ export const adminVideoController = {
 
   async upload(req: Request, res: Response) {
     if (!req.file) return fail(res, 'A video file is required', 422);
-    let outputDir: string | undefined;
-    let videoId: string | undefined;
     try {
       const parsed = uploadSchema.safeParse(req.body);
-      if (!parsed.success) return fail(res, 'Video metadata is invalid', 422, parsed.error.flatten());
-      if (parsed.data.minAge > parsed.data.maxAge) return fail(res, 'Minimum age cannot exceed maximum age', 422);
-
-      const id = `video_${randomUUID()}`;
-      videoId = id;
-      const probe = await probeVideo(req.file.path);
-      outputDir = await segmentToHls(req.file.path);
-      const playlistUrl = await uploadHlsDirectory(id, outputDir);
-      const video: Video = {
-        id,
-        title: parsed.data.title,
-        description: parsed.data.description,
-        videoUrl: playlistUrl,
-        thumbnailUrl: parsed.data.thumbnailUrl || '',
-        category: parsed.data.category,
-        language: parsed.data.language,
-        minAge: parsed.data.minAge,
-        maxAge: parsed.data.maxAge,
-        durationSeconds: probe.durationSeconds,
-        orientation: probe.orientation,
-        isShort: parsed.data.isShort,
-        isEducational: parsed.data.isEducational,
-        isReligious: parsed.data.isReligious,
-        creator: parsed.data.creator,
-        tags: parsed.data.tags,
-      };
-      await videoRepository.save(video);
+      const error = metadataError(parsed);
+      if (error || !parsed.success) return fail(res, error ?? 'Video metadata is invalid', 422, parsed.success ? undefined : parsed.error.flatten());
+      const video = await publishVideoFromPath(req.file.path, parsed.data);
       return ok(res, video, 201);
-    } catch (error) {
-      if (videoId) {
-        try { await deleteVideoObjects(videoId); } catch {}
-      }
-      throw error;
     } finally {
       await rm(req.file.path, { force: true });
-      if (outputDir) await rm(outputDir, { recursive: true, force: true });
     }
+  },
+
+  async fromFolder(req: Request, res: Response) {
+    const parsed = folderSchema.safeParse(req.body);
+    const error = metadataError(parsed);
+    if (error || !parsed.success) return fail(res, error ?? 'Video metadata is invalid', 422, parsed.success ? undefined : parsed.error.flatten());
+
+    let files: string[];
+    try {
+      files = await listVideoFilesInFolder(parsed.data.folder);
+    } catch (cause) {
+      const code = cause && typeof cause === 'object' && 'code' in cause ? String(cause.code) : '';
+      const message = cause instanceof Error ? cause.message : '';
+      if (code === 'ENOENT' || message.includes('not a folder')) {
+        return fail(res, 'That folder does not exist or is not a directory', 422);
+      }
+      throw cause;
+    }
+    if (files.length === 0) return fail(res, 'No MP4, MOV, or M4V videos were found in that folder', 422);
+
+    const published = [];
+    const failed: Array<{ file: string; error: string }> = [];
+    for (let index = 0; index < files.length; index += 1) {
+      const filePath = files[index];
+      try {
+        published.push(await publishVideoFromPath(filePath, {
+          ...parsed.data,
+          title: incrementedTitle(parsed.data.title, index + 1),
+        }));
+      } catch (cause) {
+        failed.push({
+          file: path.basename(filePath),
+          error: cause instanceof Error ? cause.message : 'Upload failed',
+        });
+      }
+    }
+    if (published.length === 0) {
+      return fail(res, 'None of the videos in that folder could be published', 422, { failed });
+    }
+    return ok(res, { published, failed, total: files.length }, 201);
   },
 
   async remove(req: Request, res: Response) {

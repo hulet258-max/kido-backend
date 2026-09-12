@@ -4,13 +4,14 @@ import { pool } from '../src/config/db';
 import { paymentController } from '../src/controllers/paymentController';
 import { authController } from '../src/controllers/authController';
 import type { Request, Response } from 'express';
-import { subscriptionPlans, verifiedPayment } from '../src/services/paymentService';
+import { plansForMonthlyPrice, verifiedPayment } from '../src/services/paymentService';
 import { checkoutSchema, verifyCheckoutSchema } from '../src/controllers/paymentController';
 
-test('plans start at 200 ETB and reward longer prepaid periods', () => {
-  assert.deepEqual(subscriptionPlans.map(p => p.amount), [200, 540, 1020, 1920]);
+test('plans start at 150 ETB and reward longer prepaid periods', () => {
+  const subscriptionPlans = plansForMonthlyPrice(150);
+  assert.deepEqual(subscriptionPlans.map(p => p.amount), [150, 405, 765, 1440]);
   for (const plan of subscriptionPlans) {
-    assert.equal(plan.amount, 200 * plan.months * (100 - plan.discount) / 100);
+    assert.equal(plan.amount, 150 * plan.months * (100 - plan.discount) / 100);
   }
 });
 
@@ -24,7 +25,7 @@ test('only matching successful ETB payments unlock signup', () => {
 });
 
 test('checkout accepts known plans and strips client price overrides', () => {
-  const signup = { name: 'Parent', phone: '0911111111', pin: '1234',
+  const signup = { name: 'Parent', email: 'parent@example.com', phone: '0911111111', pin: '1234',
     child: { name: 'Child', age: 7 }, planId: 'yearly', amount: 1 };
   const result = checkoutSchema.parse(signup);
   assert.equal('amount' in result, false);
@@ -84,4 +85,53 @@ test('an unknown checkout capability cannot reach Chapa or account creation', as
     assert.equal(result.code, 404);
     assert.equal(fetchMock.mock.callCount(), 0);
   } finally { db.mock.restore(); fetchMock.mock.restore(); }
+});
+
+
+test('signup requires a valid email and normalizes it', () => {
+  const signup = { name: 'Parent', phone: '0911111111', pin: '1234',
+    child: { name: 'Child', age: 7 }, planId: 'monthly' };
+  for (const email of [undefined, '', 'invalid', 'parent@', 'a b@example.com']) {
+    assert.equal(checkoutSchema.safeParse({ ...signup, email }).success, false);
+  }
+  assert.equal(checkoutSchema.parse({ ...signup, email: '  Parent@Example.COM  ' }).email, 'parent@example.com');
+});
+
+test('a verified payment finalizes once and persists the registration email', async () => {
+  const txRef = '70e8400e-e29b-41d4-a716-446655440000';
+  const payment = { tx_ref: txRef, amount: '150.00', months: 1, parent_id: null as string | null,
+    signup: checkoutSchema.parse({ name: 'Parent', email: 'parent@example.com', phone: '0911111111',
+      pin: '1234', child: { name: 'Child', age: 7 }, planId: 'monthly' }) };
+  const writes: { sql: string; args?: unknown[] }[] = [];
+  const db = mock.method(pool, 'query', async (sql: string) => {
+    if (sql.includes('signup_payments')) return { rows: [payment] };
+    if (sql.includes('FROM parents')) return { rows: [{ id: payment.parent_id, name: 'Parent',
+      email: 'parent@example.com', phone: '0911111111', pin: '1234', child_ids: [] }] };
+    return { rows: [] };
+  });
+  const client = {
+    async query(sql: string, args?: unknown[]) {
+      writes.push({ sql, args });
+      if (sql.includes('FOR UPDATE')) return { rows: [payment] };
+      if (sql.includes('UPDATE signup_payments')) payment.parent_id = args![1] as string;
+      return { rows: [] };
+    }, release() {},
+  };
+  const connect = mock.method(pool, 'connect', async () => client);
+  const provider = mock.method(globalThis, 'fetch', async () => new globalThis.Response(JSON.stringify({
+    status: 'success', data: { status: 'success', currency: 'ETB', tx_ref: txRef, amount: '150.00' },
+  }), { status: 200 }));
+  try {
+    for (let i = 0; i < 2; i++) {
+      const { result, res } = response();
+      await paymentController.finalize({ body: { txRef, token: 'a'.repeat(64) } } as Request, res);
+      assert.equal(result.body.data.status, 'success');
+      assert.equal(result.body.data.session.parent.email, 'parent@example.com');
+    }
+    assert.equal(writes.filter(w => w.sql.includes('INSERT INTO parents')).length, 1);
+    assert.equal(writes.find(w => w.sql.includes('INSERT INTO parents'))!.args![5], 'parent@example.com');
+    assert.equal(writes.filter(w => w.sql.includes('INSERT INTO children')).length, 1);
+    assert.ok(writes.some(w => w.sql === 'COMMIT'));
+    assert.equal(provider.mock.callCount(), 1);
+  } finally { db.mock.restore(); connect.mock.restore(); provider.mock.restore(); }
 });

@@ -1,4 +1,4 @@
-const secretNames = ['DB_PASSWORD', 'DATABASE_URL', 'ADMIN_API_KEY', 'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY'];
+const secretNames = ['CHAPA_SECRET_KEY', 'DB_PASSWORD', 'DATABASE_URL', 'ADMIN_API_KEY', 'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY'];
 
 export function sanitize(message: string, source: NodeJS.ProcessEnv = process.env) {
   let result = message.replace(/([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi, '$1[REDACTED]@');

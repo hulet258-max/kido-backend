@@ -6,6 +6,7 @@ type ParentRow = {
   name: string;
   pin: string;
   phone: string | null;
+  email: string | null;
   child_ids: string[];
 };
 
@@ -15,19 +16,20 @@ function mapParent(row: ParentRow): ParentAccount {
     name: row.name,
     pin: row.pin,
     phone: row.phone ?? '',
+    email: row.email ?? '',
     childIds: row.child_ids ?? [],
   };
 }
 
 export const parentRepository = {
   async getById(id: string): Promise<ParentAccount | undefined> {
-    const { rows } = await query<ParentRow>('SELECT id, name, pin, phone, child_ids FROM parents WHERE id = $1', [id]);
+    const { rows } = await query<ParentRow>('SELECT id, name, pin, phone, email, child_ids FROM parents WHERE id = $1', [id]);
     return rows[0] ? mapParent(rows[0]) : undefined;
   },
 
   async findByPhone(phone: string): Promise<ParentAccount | undefined> {
     const { rows } = await query<ParentRow>(
-      'SELECT id, name, pin, phone, child_ids FROM parents WHERE phone = $1',
+      'SELECT id, name, pin, phone, email, child_ids FROM parents WHERE phone = $1',
       [phone],
     );
     return rows[0] ? mapParent(rows[0]) : undefined;
