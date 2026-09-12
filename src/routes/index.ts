@@ -29,6 +29,7 @@ router.get('/payments/return', asyncHandler(paymentController.returned));
 router.post('/auth/signup', validate(signupSchema), asyncHandler(authController.signup));
 router.post('/auth/login', validate(loginSchema), asyncHandler(authController.login));
 
+router.get('/videos/revision', asyncHandler(videoController.revision));
 router.get('/videos', asyncHandler(videoController.list));
 router.get('/videos/:id', asyncHandler(videoController.get));
 router.get('/categories', asyncHandler(videoController.categories));

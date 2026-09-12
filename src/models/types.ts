@@ -78,6 +78,7 @@ export interface Video {
   religiousPreference?: ReligiousPreference;
   creator: string;
   tags: string[];
+  createdAt?: string;
 }
 
 export interface ScheduleBlock {

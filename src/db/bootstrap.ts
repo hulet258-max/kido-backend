@@ -82,6 +82,9 @@ export async function bootstrapDatabase() {
   await pool.query(schemaSql);
   await pool.query('ALTER TABLE parents ADD COLUMN IF NOT EXISTS phone TEXT');
   await pool.query('ALTER TABLE parents ADD COLUMN IF NOT EXISTS email TEXT');
+  await pool.query('ALTER TABLE videos ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()');
+  await pool.query('ALTER TABLE videos ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()');
+  await pool.query('CREATE INDEX IF NOT EXISTS videos_created_at_idx ON videos (created_at DESC)');
   await pool.query('ALTER TABLE signup_payments ALTER COLUMN amount TYPE NUMERIC(12,2)');
   await pool.query('ALTER TABLE children ADD COLUMN IF NOT EXISTS dislikes JSONB NOT NULL DEFAULT \'[]\'::jsonb');
   await pool.query('ALTER TABLE viewing_events ADD COLUMN IF NOT EXISTS reaction TEXT');

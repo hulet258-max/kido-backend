@@ -44,6 +44,7 @@ export async function publishVideoFromPath(filePath: string, metadata: VideoPubl
       isReligious: metadata.isReligious,
       creator: metadata.creator,
       tags: metadata.tags,
+      createdAt: new Date().toISOString(),
     };
     await videoRepository.save(video);
     return video;
