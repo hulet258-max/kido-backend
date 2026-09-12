@@ -35,6 +35,7 @@ const uploadSchema = z.object({
   isShort: booleanField.default(false),
   isEducational: booleanField.default(false),
   isReligious: booleanField.default(false),
+  orientation: z.enum(['vertical', 'horizontal']).optional(),
   creator: z.string().trim().min(1).max(120),
   tags: tagsField,
   thumbnailUrl: z.string().url().optional().or(z.literal('')),

@@ -15,6 +15,7 @@ export type VideoPublishMetadata = {
   isShort: boolean;
   isEducational: boolean;
   isReligious: boolean;
+  orientation?: 'vertical' | 'horizontal';
   creator: string;
   tags: string[];
   thumbnailUrl?: string;
@@ -38,7 +39,7 @@ export async function publishVideoFromPath(filePath: string, metadata: VideoPubl
       minAge: metadata.minAge,
       maxAge: metadata.maxAge,
       durationSeconds: probe.durationSeconds,
-      orientation: probe.orientation,
+      orientation: metadata.orientation ?? probe.orientation,
       isShort: metadata.isShort,
       isEducational: metadata.isEducational,
       isReligious: metadata.isReligious,
